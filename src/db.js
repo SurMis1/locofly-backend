@@ -9,9 +9,8 @@ const pool = new Pool({
   user: dbUser,
   password: dbPassword,
   database: dbName,
-  host: `/cloudsql/${connectionName}`,
-  port: 5432,
-  ssl: false,
+  host: `/cloudsql/${connectionName}`,   // UNIX socket path
+  ssl: false                              // DO NOT use port
 });
 
 pool.on('error', (err) => {
