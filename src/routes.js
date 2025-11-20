@@ -30,25 +30,22 @@ router.post('/locations', async (req, res, next) => {
 /* ======================================================
    2️⃣ LIST LOCATIONS
 ====================================================== */
-router.get('/locations', async (req, res, next) => {
+router.get('/search', async (req, res, next) => {
   try {
-    let result;
+    const q = (req.query.q || '').trim();
 
-    try {
-      result = await db.query(`SELECT id, name FROM locations ORDER BY id`);
-      if (result.rows.length > 0) return res.json(result.rows);
-    } catch (err) {}
-
-    // fallback (legacy)
-    result = await db.query(`
-      SELECT DISTINCT location_id AS id,
-             'Location ' || location_id AS name
-        FROM inventory
-       ORDER BY id
-    `);
+    const result = await db.query(
+      `SELECT i.*, l.name AS location_name
+         FROM inventory i
+         LEFT JOIN locations l ON l.id = i.location_id
+        WHERE i.item_name ILIKE $1
+           OR i.barcode = $2
+        ORDER BY i.item_name
+        LIMIT 50`,
+      [`%${q}%`, q]
+    );
 
     res.json(result.rows);
-
   } catch (err) {
     next(err);
   }
