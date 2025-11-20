@@ -9,8 +9,7 @@ function toInt(val) {
 }
 
 /* ======================================================
-   1️⃣ CREATE LOCATION (manual)
-   POST /locations { name }
+   1️⃣ CREATE LOCATION
 ====================================================== */
 router.post('/locations', async (req, res, next) => {
   try {
@@ -30,22 +29,17 @@ router.post('/locations', async (req, res, next) => {
 
 /* ======================================================
    2️⃣ LIST LOCATIONS
-   GET /locations
-   (Old behavior preserved if table doesn't exist)
 ====================================================== */
 router.get('/locations', async (req, res, next) => {
   try {
     let result;
 
-    // Preferred: real locations table
     try {
       result = await db.query(`SELECT id, name FROM locations ORDER BY id`);
       if (result.rows.length > 0) return res.json(result.rows);
-    } catch (err) {
-      // fallback to old behavior
-    }
+    } catch (err) {}
 
-    // Legacy fallback (auto-generated from inventory)
+    // fallback (legacy)
     result = await db.query(`
       SELECT DISTINCT location_id AS id,
              'Location ' || location_id AS name
@@ -62,7 +56,6 @@ router.get('/locations', async (req, res, next) => {
 
 /* ======================================================
    3️⃣ ADD ITEM
-   POST /items  { item_name, quantity, barcode, location_id }
 ====================================================== */
 router.post('/items', async (req, res, next) => {
   try {
@@ -85,8 +78,7 @@ router.post('/items', async (req, res, next) => {
 });
 
 /* ======================================================
-   4️⃣ EDIT ITEM
-   PUT /items/:id   { item_name?, barcode? }
+   4️⃣ EDIT ITEM (supports quantity)
 ====================================================== */
 router.put('/items/:id', async (req, res, next) => {
   try {
@@ -104,7 +96,7 @@ router.put('/items/:id', async (req, res, next) => {
       [
         item_name,
         barcode,
-        quantity === null || quantity === undefined ? null : quantity,
+        quantity === undefined ? null : quantity,
         id
       ]
     );
@@ -120,8 +112,7 @@ router.put('/items/:id', async (req, res, next) => {
 });
 
 /* ======================================================
-   5️⃣ GET INVENTORY (location-level, with search)
-   GET /inventory?location_id=1&query=milk
+   5️⃣ GET INVENTORY
 ====================================================== */
 router.get('/inventory', async (req, res, next) => {
   try {
@@ -160,8 +151,7 @@ router.get('/inventory', async (req, res, next) => {
 });
 
 /* ======================================================
-   6️⃣ BATCH ADJUST (existing logic untouched)
-   POST /inventory/adjust
+   6️⃣ BATCH ADJUST
 ====================================================== */
 router.post('/inventory/adjust', async (req, res, next) => {
   const client = await db.pool.connect();
@@ -198,33 +188,32 @@ router.post('/inventory/adjust', async (req, res, next) => {
     res.json({ updated });
 
   } catch (err) {
-    try {
-      await client.query('ROLLBACK');
-    } catch {}
+    try { await client.query('ROLLBACK'); } catch {}
     client.release();
     next(err);
   }
 });
 
 /* ======================================================
-   7️⃣ GLOBAL SEARCH (20k SKU modal)
-   GET /search?q=milk
+   7️⃣ GLOBAL SEARCH (JOIN FIX ✔)
 ====================================================== */
 router.get('/search', async (req, res, next) => {
   try {
     const q = (req.query.q || '').trim();
 
     const result = await db.query(
-      `SELECT *
-         FROM inventory
-        WHERE item_name ILIKE $1
-           OR barcode = $2
-        ORDER BY item_name
+      `SELECT i.*, l.name AS location_name
+         FROM inventory i
+         JOIN locations l ON l.id = i.location_id
+        WHERE i.item_name ILIKE $1
+           OR i.barcode = $2
+        ORDER BY i.item_name
         LIMIT 50`,
       [`%${q}%`, q]
     );
 
     res.json(result.rows);
+
   } catch (err) {
     next(err);
   }
