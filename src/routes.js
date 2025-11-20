@@ -28,24 +28,15 @@ router.post('/locations', async (req, res, next) => {
 });
 
 /* ======================================================
-   2️⃣ LIST LOCATIONS
+   2️⃣ LIST LOCATIONS  (THIS WAS MISSING)
 ====================================================== */
-router.get('/search', async (req, res, next) => {
+router.get('/locations', async (req, res, next) => {
   try {
-    const q = (req.query.q || '').trim();
-
     const result = await db.query(
-      `SELECT i.*, l.name AS location_name
-         FROM inventory i
-         LEFT JOIN locations l ON l.id = i.location_id
-        WHERE i.item_name ILIKE $1
-           OR i.barcode = $2
-        ORDER BY i.item_name
-        LIMIT 50`,
-      [`%${q}%`, q]
+      `SELECT id, name FROM locations ORDER BY id`
     );
 
-    res.json(result.rows);
+    return res.json(result.rows);
   } catch (err) {
     next(err);
   }
