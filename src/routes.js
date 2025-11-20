@@ -9,7 +9,7 @@ function toInt(val) {
 }
 
 /* ======================================================
-   1️⃣ CREATE LOCATION
+   CREATE LOCATION
 ====================================================== */
 router.post('/locations', async (req, res, next) => {
   try {
@@ -28,7 +28,7 @@ router.post('/locations', async (req, res, next) => {
 });
 
 /* ======================================================
-   2️⃣ LIST LOCATIONS
+   LIST LOCATIONS
 ====================================================== */
 router.get('/locations', async (req, res, next) => {
   try {
@@ -42,7 +42,7 @@ router.get('/locations', async (req, res, next) => {
 });
 
 /* ======================================================
-   3️⃣ ADD ITEM
+   ADD ITEM
 ====================================================== */
 router.post('/items', async (req, res, next) => {
   try {
@@ -65,7 +65,7 @@ router.post('/items', async (req, res, next) => {
 });
 
 /* ======================================================
-   4️⃣ EDIT ITEM (supports quantity)
+   EDIT ITEM (supports quantity)
 ====================================================== */
 router.put('/items/:id', async (req, res, next) => {
   try {
@@ -92,22 +92,22 @@ router.put('/items/:id', async (req, res, next) => {
       return res.status(404).json({ error: "item not found" });
 
     res.json(q.rows[0]);
+
   } catch (err) {
     next(err);
   }
 });
 
 /* ======================================================
-   5️⃣ GET INVENTORY
+   LOCATION INVENTORY
 ====================================================== */
 router.get('/inventory', async (req, res, next) => {
   try {
     const locationId = toInt(req.query.location_id);
     const search = (req.query.query || '').trim();
 
-    if (!locationId) {
+    if (!locationId)
       return res.status(400).json({ error: 'location_id is required' });
-    }
 
     const params = [locationId];
     let sql = `
@@ -131,64 +131,22 @@ router.get('/inventory', async (req, res, next) => {
 
     const result = await db.query(sql, params);
     res.json(result.rows);
+
   } catch (err) {
     next(err);
   }
 });
 
 /* ======================================================
-   6️⃣ BATCH ADJUST
-====================================================== */
-router.post('/inventory/adjust', async (req, res, next) => {
-  const client = await db.pool.connect();
-  try {
-    const { location_id, items } = req.body || {};
-    const locationId = toInt(location_id);
-
-    if (!locationId || !Array.isArray(items) || items.length === 0) {
-      client.release();
-      return res.status(400).json({ error: 'location_id and items[] are required' });
-    }
-
-    await client.query('BEGIN');
-    const updated = [];
-
-    for (const item of items) {
-      const id = toInt(item.id);
-      const delta = Number(item.delta || 0);
-      if (!id || !delta) continue;
-
-      const updateSql = `
-        UPDATE inventory
-        SET quantity = quantity + $1,
-            updated_at = NOW()
-        WHERE id = $2 AND location_id = $3
-        RETURNING id, item_name, quantity, location_id, updated_at, barcode
-      `;
-      const result = await client.query(updateSql, [delta, id, locationId]);
-      if (result.rows[0]) updated.push(result.rows[0]);
-    }
-
-    await client.query('COMMIT');
-    client.release();
-    res.json({ updated });
-
-  } catch (err) {
-    try { await client.query('ROLLBACK'); } catch {}
-    client.release();
-    next(err);
-  }
-});
-
-/* ======================================================
-   7️⃣ GLOBAL SEARCH (JOIN FIX)
+   GLOBAL SEARCH (correct JOIN)
 ====================================================== */
 router.get('/search', async (req, res, next) => {
   try {
     const q = (req.query.q || '').trim();
 
     const result = await db.query(
-      `SELECT i.*, l.name AS location_name
+      `SELECT i.*,
+              l.name AS location_name
          FROM inventory i
          JOIN locations l ON l.id = i.location_id
         WHERE i.item_name ILIKE $1
@@ -199,7 +157,6 @@ router.get('/search', async (req, res, next) => {
     );
 
     res.json(result.rows);
-
   } catch (err) {
     next(err);
   }
