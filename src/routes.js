@@ -28,15 +28,14 @@ router.post('/locations', async (req, res, next) => {
 });
 
 /* ======================================================
-   2️⃣ LIST LOCATIONS  (THIS WAS MISSING)
+   2️⃣ LIST LOCATIONS
 ====================================================== */
 router.get('/locations', async (req, res, next) => {
   try {
     const result = await db.query(
       `SELECT id, name FROM locations ORDER BY id`
     );
-
-    return res.json(result.rows);
+    res.json(result.rows);
   } catch (err) {
     next(err);
   }
@@ -93,7 +92,6 @@ router.put('/items/:id', async (req, res, next) => {
       return res.status(404).json({ error: "item not found" });
 
     res.json(q.rows[0]);
-
   } catch (err) {
     next(err);
   }
@@ -183,7 +181,7 @@ router.post('/inventory/adjust', async (req, res, next) => {
 });
 
 /* ======================================================
-   7️⃣ GLOBAL SEARCH (JOIN FIX ✔)
+   7️⃣ GLOBAL SEARCH (JOIN FIX)
 ====================================================== */
 router.get('/search', async (req, res, next) => {
   try {
