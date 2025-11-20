@@ -91,16 +91,22 @@ router.post('/items', async (req, res, next) => {
 router.put('/items/:id', async (req, res, next) => {
   try {
     const id = toInt(req.params.id);
-    const { item_name, barcode } = req.body;
+    const { item_name, barcode, quantity } = req.body;
 
     const q = await db.query(
       `UPDATE inventory
           SET item_name = COALESCE($1, item_name),
               barcode   = COALESCE($2, barcode),
+              quantity  = COALESCE($3, quantity),
               updated_at = NOW()
-        WHERE id = $3
+        WHERE id = $4
         RETURNING *`,
-      [item_name, barcode, id]
+      [
+        item_name,
+        barcode,
+        quantity === null || quantity === undefined ? null : quantity,
+        id
+      ]
     );
 
     if (q.rows.length === 0)
