@@ -162,4 +162,41 @@ router.get('/search', async (req, res, next) => {
   }
 });
 
+/* ======================================================
+   FIXED — SINGLE ITEM QUANTITY ADJUST (for +1 / -1)
+====================================================== */
+router.post('/inventory/adjust', async (req, res, next) => {
+  try {
+    const { location_id, items } = req.body || {};
+    const locationId = toInt(location_id);
+
+    if (!locationId || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'location_id and items[] are required' });
+    }
+
+    const item = items[0] || {};
+    const id = toInt(item.id);
+    const delta = Number(item.delta || 0);
+
+    if (!id || !delta) {
+      return res.json({ updated: [] });
+    }
+
+    const sql = `
+      UPDATE inventory
+         SET quantity   = quantity + $1,
+             updated_at = NOW()
+       WHERE id = $2
+         AND location_id = $3
+       RETURNING id, item_name, quantity, location_id, updated_at, barcode
+    `;
+
+    const result = await db.query(sql, [delta, id, locationId]);
+    return res.json({ updated: result.rows });
+
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
